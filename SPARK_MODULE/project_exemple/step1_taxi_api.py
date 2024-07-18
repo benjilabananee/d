@@ -15,7 +15,7 @@ while True:
         producer = KafkaProducer(bootstrap_servers="course-kafka:9092")
         producer.send(topic="my_trip", value=json.dumps(row).encode('utf-8'))
     print(datetime.fromtimestamp(time.time()))
-    time.sleep(3)
+    time.sleep(4)
 
 
 
