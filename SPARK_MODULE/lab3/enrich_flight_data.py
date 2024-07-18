@@ -1,0 +1,36 @@
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql import types as T
+from datetime import date, timedelta
+from pyspark.sql import Row
+
+#in this function we create a dummy dataframe of date, and after that we selecting each date we will generate with the sequence it's like select 5 from dummy
+#sequence create a list with all the date between 01-01-2020 to 31-12-2020 
+#after the list is create with all the date we explode all this list into rows, each date will be transform in row
+def get_dates_df():
+    dummy_df = spark.createDataFrame([Row(dummy='x')])
+    in_dates_df = dummy_df.select(F.explode(F.sequence(F.lit("2020-01-01").cast(T.DateType()),
+                                                        F.lit("2020-12-31").cast(T.DateType()))).alias("flight_date"))
+    return in_dates_df
+
+spark = SparkSession.builder.master("local").appName('ex3_add_dates').getOrCreate()
+
+flights_df = spark.read.parquet('s3a://spark/data/stg/flight_matched/')
+dates_df = get_dates_df()
+
+dates_full_df = dates_df \
+.withColumn('day_of_week', F.dayofweek(F.col('flight_date'))) \
+.withColumn('day_of_month', F.dayofmonth(F.col('flight_date')))
+
+max_date_df = dates_full_df \
+.groupBy(F.col('day_of_week'), F.col('day_of_month')) \
+.agg(F.max(F.col('flight_date')).alias('flight_date'))
+
+
+enriched_flights_df = flights_df.join(max_date_df, ['day_of_week', 'day_of_month'])
+
+enriched_flights_df.show()
+
+# enriched_flights_df.write.parquet('s3a://spark/data/transformed/flights/',mode='overwrite')
+
+# spark.stop()
